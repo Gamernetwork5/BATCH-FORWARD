@@ -1,23 +1,22 @@
-// Telegram Bot to forward messages from one chat to another using Node.js and node-telegram-bot-api
-// Made by @dev_gagan
-
-
 const TelegramBot = require('node-telegram-bot-api');
 const fs = require('fs');
+const express = require("express");
 
-const botToken = 'Your_Token'; // Replace with your bot token
-const bot = new TelegramBot(botToken, { polling: true });
+const botToken = '7801977957:AAGZav-Jyxv39AQUdivE_EfvIpGEF9cJFfU'; // Replace with your bot token
+const bot = new TelegramBot(botToken, { polling: true }); // Use polling mode for the bot
 
-const ownerUserId = 6964148334; // Replace with your user ID
+const app = express();
+
+const ownerUserId = 6923915798; // Replace with your user ID
 const authorizedUsers = {}; // Object to store authorized user IDs and their data
 
-const startMessage = "Welcome to 𝐒𝐏𝐘 𝐅𝐎𝐑𝐖𝐀𝐑𝐃 𝐁𝐎𝐓 made with ❤️ by 𝙂𝙖𝙜𝙖𝙣!!! \n\n✨Embrace the Power of Forwarding✨ \n\nAre you tired of manual message forwarding? 𝐒𝐏𝐘 𝐅𝐎𝐑𝐖𝐀𝐑𝐃 𝐁𝐎𝐓 is here to make your life easier. \n\nSeamlessly forward messages from one chat to another with just a few clicks.\n\n🚀 Fast: Instantly transmit messages to your desired destination.\n\🔒 Secure: Maintain your data integrity and privacy throughout the process.\n🤖 Techy: Harness the potential of automation and advanced messaging solutions.\n\nFor any inquiries or assistance, feel free to contact us to get authorozed to use this bot.\n\nLet's make message forwarding smarter, faster, and more efficient with 𝐒𝐏𝐘 𝐅𝐎𝐑𝐖𝐀𝐑𝐃 𝐁𝐎𝐓! 🌟🤖"
+const startMessage = "Welcome to 𝐒𝐏𝐘 𝐅𝐎𝐑𝐖𝐀𝐑𝐃 𝐁𝐎𝐓..."; // Your start message
 
 // Load authorized users data from file if it exists
 const authorizedUsersFile = 'authorized_users.json';
 if (fs.existsSync(authorizedUsersFile)) {
   const data = fs.readFileSync(authorizedUsersFile);
-  Object.assign(authorizedUsers, JSON.parse(data))
+  Object.assign(authorizedUsers, JSON.parse(data));
 }
 
 let isForwarding = false;
@@ -25,32 +24,32 @@ let isForwarding = false;
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function forwardMessagesInRange(chatId, sourceChatId, destinationChatId, startId, endId) {
-  isForwarding = true; // Set forwarding flag to true
+  isForwarding = true;
 
-  const batchSize = 20; // Number of messages to forward in each batch
-  const batchDelay = 2000; // Delay in milliseconds between batches
-  const messageDelay = 50; // Delay in milliseconds between messages within a batch
-  const floodWaitDelay = 15000; // Delay in milliseconds for "Flood Wait" error
+  const batchSize = 20;
+  const batchDelay = 2000;
+  const messageDelay = 50;
+  const floodWaitDelay = 15000;
 
   for (let messageId = startId; messageId <= endId; messageId += batchSize) {
     if (!isForwarding) {
-      break; // Stop forwarding if /cancel command is issued
+      break;
     }
 
     const endBatchId = Math.min(messageId + batchSize - 1, endId);
 
     try {
       for (let batchMessageId = messageId; batchMessageId <= endBatchId; batchMessageId++) {
-		await bot.forwardMessage(destinationChatId, sourceChatId, batchMessageId, { disable_notification: true });
-		console.log(`Forwarded message ${batchMessageId}`);
-		if (batchMessageId !== endBatchId) {
-			await delay(messageDelay); // Introduce a delay between messages in the same batch
-		}
+        await bot.copyMessage(destinationChatId, sourceChatId, batchMessageId, { disable_notification: true });
+        console.log(`Forwarded message ${batchMessageId}`);
+        if (batchMessageId !== endBatchId) {
+          await delay(messageDelay);
+        }
       }
       console.log(`Forwarded messages from ${messageId} to ${endBatchId}`);
-      
+
       if (endBatchId !== endId) {
-        await delay(batchDelay); // Introduce a delay between batches (except the last one)
+        await delay(batchDelay);
       }
     } catch (error) {
       console.error(`Error forwarding messages:`, error);
@@ -61,17 +60,18 @@ async function forwardMessagesInRange(chatId, sourceChatId, destinationChatId, s
     }
   }
 
-  isForwarding = false; // Fork kr lo tumhari smjh se bahar hai @devgagan
+  isForwarding = false;
 }
 
+// Handle authorized users and commands
 bot.onText(/\/auth (\d+)/, (msg, match) => {
   const chatId = msg.chat.id;
   const userId = parseInt(match[1]);
 
   if (msg.from.id === ownerUserId) {
     authorizedUsers[userId] = true;
-    saveAuthorizedUsers(); 
-    bot.sendMessage(chatId, `User ${userId} is now authorized to use the bot...`);
+    saveAuthorizedUsers();
+    bot.sendMessage(chatId, `User ${userId} is now authorized.`);
   } else {
     bot.sendMessage(chatId, 'You are not authorized to perform this action...');
   }
@@ -174,7 +174,6 @@ bot.onText(/\/forward/, async (msg) => {
   });
 });
 
-
 bot.onText(/\/cancel/, async (msg) => {
   const chatId = msg.chat.id;
   if (isForwarding) {
@@ -190,20 +189,35 @@ function saveAuthorizedUsers() {
   fs.writeFileSync('authorized_users.json', data, 'utf8');
 }
 
-// Bot shutdown event handler to save authorized user data
-bot.on('polling_error', (error) => {
-  console.error('Polling error:', error);
-  saveAuthorizedUsers();
+// Basic health check endpoint for Express
+app.get("/", (req, res) => {
+  res.send("Bot is running!");
 });
 
-process.on('SIGINT', () => {
-  saveAuthorizedUsers();
-  process.exit();
+// Start the Express server
+const PORT = 3000;
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
 
-console.log('Bot is running...');
+// Graceful shutdown for both the bot and server
+process.once('SIGINT', () => {
+  bot.stop('SIGINT');
+  server.close(() => {
+    console.log('Server shut down gracefully');
+    process.exit(0);
+  });
+});
 
+process.once('SIGTERM', () => {
+  bot.stop('SIGTERM');
+  server.close(() => {
+    console.log('Server shut down gracefully');
+    process.exit(0);
+  });
+});
 
+// Utility to parse integer from message
 function parseIntegerMessage(message) {
   const parsedValue = parseInt(message.text.trim());
   return isNaN(parsedValue) ? NaN : parsedValue;
